@@ -1,0 +1,63 @@
+:root {
+    /* Backgrounds */
+    --bg: #F5F3EF;
+    --surface-elevated: #FAF8F4;
+    --surface: #EDE9E3;
+    --surface-variant: #E5E1DA;
+
+    /* Text */
+    --text-primary: #0B0D14;
+    --text-secondary: #6B6760;
+    --text-muted: #9B9790;
+    --text-disabled: #C4BFB8;
+    --text-on-dark: #F5F3EF;
+
+    /* Semantic */
+    --green: #2A6E35;
+    --error: #B03030;
+    --warning: #C47018;
+    --blue: #1A3A7A;
+
+    /* Status pills */
+    --pill-scheduled-bg: #E5E1DA;
+    --pill-scheduled-text: #4A4845;
+    --pill-ongoing-bg: #D4DCF0;
+    --pill-ongoing-text: #0A2460;
+    --pill-completed-bg: #D4EBD8;
+    --pill-completed-text: #174520;
+    --pill-cancelled-bg: #F5D8D8;
+    --pill-cancelled-text: #8A1E1E;
+    --pill-pending-bg: #FAF0DC;
+    --pill-pending-text: #3D2500;
+    --pill-approved-bg: #D4EBD8;
+    --pill-approved-text: #174520;
+    --pill-rejected-bg: #F5D8D8;
+    --pill-rejected-text: #8A1E1E;
+    --pill-manual-bg: #EDE0F5;
+    --pill-manual-text: #4A1E6B;
+
+    /* Radii */
+    --radius-card: 20px;
+    --radius-hero: 22px;
+    --radius-input: 14px;
+    --radius-pill: 100px;
+    --radius-icon-tile: 11px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: var(--bg);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text-primary);
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

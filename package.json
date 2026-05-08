@@ -1,0 +1,14 @@
+{
+  "name": "smart-attendance-system",
+  "private": true,
+  "workspaces": [
+    "frontend-web",
+    "frontend-mobile",
+    "shared"
+  ],
+  "scripts": {
+    "web": "npm --workspace=frontend-web start",
+    "mobile": "npm --workspace=frontend-mobile start",
+    "backend": "cd backend && uvicorn app.main:app --reload"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Smart Attendance",
+    "slug": "smart-attendance",
+    "version": "1.0.0",
+    "scheme": "smart-attendance",
+    "platforms": ["android"],
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F5F3EF"
+      },
+      "permissions": ["android.permission.CAMERA"]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        { "cameraPermission": "This app needs camera access to scan your iris for attendance." }
+      ]
+    ]
+  }
+}
