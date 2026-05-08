@@ -1,1 +1,17 @@
-.env
+# Environment files
+**/.env
+**/.env.local
+**/.env.development
+**/.env.production
+
+# Node modules
+**/node_modules/
+
+# Build folders
+**/dist/
+**/build/
+
+# Visual Studio
+.vs/
+bin/
+obj/
