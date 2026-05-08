@@ -87,12 +87,15 @@ async def verify_iris(
     config_doc = db.collection("systemConfig").document("main").get()
     config = config_doc.to_dict() if config_doc.exists else {}
     threshold = config.get("irisMatchThreshold", 0.80)
+    max_retries = int(config.get("maxIrisRetries", 3))
 
     # Check lecture is open
     lecture_doc = db.collection("lectures").document(payload.lectureId).get()
     if not lecture_doc.exists:
         raise HTTPException(status_code=404, detail="Lecture not found")
     lecture = lecture_doc.to_dict()
+    if lecture.get("status") in ("completed", "cancelled"):
+        raise HTTPException(status_code=400, detail="Lecture is not accepting attendance")
     if not lecture.get("attendanceOpen"):
         raise HTTPException(status_code=400, detail="Attendance window is not open")
 
@@ -101,8 +104,12 @@ async def verify_iris(
     existing_doc = db.collection("attendance").document(doc_id).get()
     if existing_doc.exists:
         existing = existing_doc.to_dict()
-        if existing.get("status") == "approved":
+        if existing.get("status") in ("approved", "manual"):
             raise HTTPException(status_code=409, detail="Attendance already approved for this lecture")
+        # Enforce retry count for re-submissions (typically after teacher rejection)
+        retry_count = int(existing.get("retryCount", 0))
+        if retry_count >= max_retries:
+            raise HTTPException(status_code=429, detail="Maximum retries reached for this lecture")
 
     # Fetch stored embedding
     stored_embedding = get_student_embedding(payload.studentId)
@@ -124,8 +131,21 @@ async def verify_iris(
     matched = score >= threshold
 
     now = datetime.now(timezone.utc)
+    if not matched:
+        # Do NOT create an attendance record on mismatch — teacher rejection is handled separately.
+        return {
+            "matched": False,
+            "score": round(score, 4),
+            "threshold": threshold,
+            "status": "no_match",
+            "message": f"Iris did not match (score: {score:.2f}, required: {threshold}). Please retry.",
+        }
 
-    # Write attendance record (overwrite if retrying)
+    # Write attendance record as pending (overwrite if retrying)
+    next_retry_count = 0
+    if existing_doc.exists:
+        next_retry_count = int(existing.get("retryCount", 0)) + 1
+
     db.collection("attendance").document(doc_id).set({
         "lectureId": payload.lectureId,
         "subjectId": lecture.get("subjectId", ""),
@@ -133,18 +153,18 @@ async def verify_iris(
         "markedAt": now,
         "irisConfidence": round(score, 4),
         "irisImagePath": payload.imagePath,
-        "status": "pending" if matched else "rejected",
+        "status": "pending",
         "approvedBy": None,
         "approvedAt": None,
         "manuallyMarkedBy": None,
         "note": None,
+        "retryCount": next_retry_count,
     })
 
     return {
-        "matched": matched,
+        "matched": True,
         "score": round(score, 4),
         "threshold": threshold,
-        "status": "pending" if matched else "rejected",
-        "message": "Iris matched. Attendance submitted for approval." if matched
-                   else f"Iris did not match (score: {score:.2f}, required: {threshold}). Please retry.",
+        "status": "pending",
+        "message": "Iris matched. Attendance submitted for approval.",
     }

@@ -3,17 +3,6 @@ import io
 import time
 
 
-
-def download_image_bytes(storage_path: str) -> bytes:
-    """Download a file from Firebase Storage and return raw bytes."""
-    bucket = get_bucket()
-    blob = bucket.blob(storage_path)
-    buffer = io.BytesIO()
-    blob.download_to_file(buffer)
-    buffer.seek(0)
-    return buffer.read()
-
-
 def download_image_bytes(storage_path: str, retries: int = 2) -> bytes:
     """Download a file from Firebase Storage with simple retry."""
     bucket = get_bucket()
