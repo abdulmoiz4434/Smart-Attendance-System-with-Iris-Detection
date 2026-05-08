@@ -1,4 +1,4 @@
-import NotificationsPage from '../shared/NotificationsPage';
+import NotificationsPage from '../../components/shared/NotificationsPage';
 import StudentLayout from '../../components/layout/StudentLayout';
 
 export default function StudentNotifications() {

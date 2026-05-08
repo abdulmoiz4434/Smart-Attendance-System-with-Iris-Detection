@@ -1,4 +1,4 @@
-import NotificationsPage from '../shared/NotificationsPage';
+import NotificationsPage from '../../components/shared/NotificationsPage';
 import AdminLayout from '../../components/layout/AdminLayout';
 
 export default function AdminNotifications() {

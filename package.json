@@ -10,5 +10,10 @@
     "web": "npm --workspace=frontend-web start",
     "mobile": "npm --workspace=frontend-mobile start",
     "backend": "cd backend && uvicorn app.main:app --reload"
+  },
+  "dependencies": {
+    "expo": "^54.0.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
   }
 }
