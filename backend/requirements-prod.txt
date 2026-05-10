@@ -11,3 +11,6 @@ scipy==1.13.1
 httpx
 PyJWT
 cloudinary
+torch==2.6.0
+torchvision==0.21.0
+facenet-pytorch==2.6.0
