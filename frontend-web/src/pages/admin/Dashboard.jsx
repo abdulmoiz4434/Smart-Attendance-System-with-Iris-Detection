@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { useAuth } from '../../context/AuthContext';
 import { listUsers, listLectures, listSubjects } from '../../api/adminApi';
-import { getTodayISO } from '@smart-attendance/shared';
+import { getTodayISO } from '../../shared';
 import { useNavigate } from 'react-router-dom';
 
 const MODULES = [

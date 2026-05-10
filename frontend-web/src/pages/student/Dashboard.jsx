@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useConfig } from '../../context/ConfigContext';
 import StudentLayout from '../../components/layout/StudentLayout';
 import { listSubjects, getAllSubjectReports, listLectures } from '../../api/studentApi';
-import { getTodayISO } from '@smart-attendance/shared';
+import { getTodayISO } from '../../shared';
 import { useNavigate } from 'react-router-dom';
 
 export default function StudentDashboard() {

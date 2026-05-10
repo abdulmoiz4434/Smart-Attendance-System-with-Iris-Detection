@@ -3,7 +3,7 @@ import StudentLayout from '../../components/layout/StudentLayout';
 import StatusPill from '../../components/shared/StatusPill';
 import { listSubjects, listLectures } from '../../api/studentApi';
 import { useAuth } from '../../context/AuthContext';
-import { getTodayISO } from '@smart-attendance/shared';
+import { getTodayISO } from '../../shared';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 

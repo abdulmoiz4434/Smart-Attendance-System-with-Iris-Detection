@@ -4,7 +4,7 @@ import StatusPill from '../../components/shared/StatusPill';
 import Modal from '../../components/shared/Modal';
 import FormField, { Input } from '../../components/shared/FormField';
 import { listLectures, createManualLecture, cancelLecture, listSubjects } from '../../api/adminApi';
-import { getTodayISO } from '@smart-attendance/shared';
+import { getTodayISO } from '../../shared';
 
 function isPastScheduled(lec) {
     const today = new Date().toISOString().slice(0, 10);

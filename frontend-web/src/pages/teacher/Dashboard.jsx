@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import TeacherLayout from '../../components/layout/TeacherLayout';
 import StatusPill from '../../components/shared/StatusPill';
 import { openAttendance, closeAttendance, checkClose, listSubjects } from '../../api/teacherApi';
-import { getTodayISO, formatTime } from '@smart-attendance/shared';
+import { getTodayISO, formatTime } from '../../shared';
 import { useNavigate } from 'react-router-dom';
 
 const MODULES = [
