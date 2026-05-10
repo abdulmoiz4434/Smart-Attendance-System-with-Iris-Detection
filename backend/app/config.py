@@ -10,6 +10,7 @@ FIREBASE_CREDENTIALS_PATH = os.getenv(
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 MOBILE_ORIGIN   = os.getenv("MOBILE_ORIGIN", "http://localhost:8081")
 ENVIRONMENT     = os.getenv("ENVIRONMENT", "development")
+FIREBASE_WEB_API_KEY = os.getenv("FIREBASE_WEB_API_KEY")
 
 # Cloudinary (replaces Firebase Storage)
 CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME")
@@ -21,6 +22,8 @@ def validate_config():
     missing = []
     if not os.path.exists(FIREBASE_CREDENTIALS_PATH) and not os.getenv("FIREBASE_CREDENTIALS_JSON"):
         missing.append("FIREBASE_CREDENTIALS_PATH or FIREBASE_CREDENTIALS_JSON")
+    if not FIREBASE_WEB_API_KEY:
+        missing.append("FIREBASE_WEB_API_KEY")
     if not CLOUDINARY_CLOUD_NAME:
         missing.append("CLOUDINARY_CLOUD_NAME")
     if not CLOUDINARY_API_KEY:

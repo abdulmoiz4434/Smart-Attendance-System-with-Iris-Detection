@@ -23,7 +23,14 @@
         "gradleCommand": ":app:assembleRelease"
       },
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://smart-attendance-system-api-uagw.onrender.com",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAFkFCGuc0BXUs7_qkIyYsR0OPWDqfr9D8",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "smart-attendance-system-a3b97.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "smart-attendance-system-a3b97",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "smart-attendance-system-a3b97.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "189730197857",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:189730197857:web:020bf346b19beb0bf67520"
       }
     }
   },

@@ -13,6 +13,10 @@ services:
         sync: false
       - key: MOBILE_ORIGIN
         value: https://expo.dev
+      - key: FIREBASE_WEB_API_KEY
+        sync: false          # Set manually in Render dashboard
+      - key: JWT_SECRET
+        sync: false          # Set manually in Render dashboard
       - key: ENVIRONMENT
         value: production
     healthCheckPath: /health

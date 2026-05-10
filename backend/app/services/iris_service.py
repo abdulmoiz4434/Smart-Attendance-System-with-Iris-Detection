@@ -127,23 +127,27 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
 # ── Public pipeline functions ─────────────────────────────────────────────────
 
 def compute_embedding_from_bytes(image_bytes: bytes):
-    nparr = np.frombuffer(image_bytes, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    if img is None:
+    """
+    Extract a 512-float iris embedding from raw image bytes.
+    Primary: PyTorch CNN (IrisEmbeddingNet) if iris_model.pt is present.
+    Fallback: Gabor filter bank (always available, no extra deps).
+    DeepFace/Facenet removed — not installed in prod.
+    """
+    roi = preprocess_iris(image_bytes)
+    if roi is None or roi.size == 0:
         return None
+
+    # Try CNN first (optional — only if model file exists)
     try:
-        from deepface import DeepFace
-        result = DeepFace.represent(
-            img_path=img,
-            model_name="Facenet",
-            enforce_detection=True,
-            detector_backend="opencv"
-        )
-        vec = np.array(result[0]["embedding"], dtype=np.float32)
-        norm = np.linalg.norm(vec)
-        return vec / norm if norm > 0 else vec
+        from app.ml.pytorch_model import extract_cnn_embedding
+        vec = extract_cnn_embedding(roi)
+        if vec is not None:
+            return vec
     except Exception:
-        return None
+        pass
+
+    # Gabor fallback — always works
+    return extract_gabor_features(roi)
 
 
 def average_embeddings(embeddings: List[np.ndarray]) -> np.ndarray:
