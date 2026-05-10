@@ -4,8 +4,6 @@ import {
     ActivityIndicator, Alert
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { ref, uploadBytes } from 'firebase/storage';
-import { storage } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
 import apiClient from '../../api/client';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -17,9 +15,10 @@ export default function MarkAttendanceScreen() {
     const [phase, setPhase] = useState('ready'); // ready | capturing | uploading | verifying | result
     const [result, setResult] = useState(null);
     const [retries, setRetries] = useState(0);
+    const [countdown, setCountdown] = useState(null);
     const cameraRef = useRef(null);
 
-    const MAX_RETRIES = 3; // Will be replaced by systemConfig.maxIrisRetries in Phase 5
+    const MAX_RETRIES = 3;
 
     const startCapture = async () => {
         if (!permission?.granted) {
@@ -31,23 +30,42 @@ export default function MarkAttendanceScreen() {
 
     const captureAndVerify = async () => {
         if (!cameraRef.current) return;
+
+        // 3-second countdown
+        for (let i = 3; i >= 1; i--) {
+            setCountdown(i);
+            await sleep(1000);
+        }
+        setCountdown(null);
+
         setPhase('uploading');
 
         try {
             const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
-            const path = `iris/${userProfile.uid}/verify_${lectureId}_${Date.now()}.jpg`;
 
-            const response = await fetch(photo.uri);
-            const blob = await response.blob();
-            const storageRef = ref(storage, path);
-            await uploadBytes(storageRef, blob);
+            // Upload to Cloudinary
+            const formData = new FormData();
+            formData.append('file', {
+                uri: photo.uri,
+                type: 'image/jpeg',
+                name: `verify_${lectureId}_${Date.now()}.jpg`,
+            });
+            formData.append('upload_preset', 'iris_unsigned');
+            formData.append('folder', `iris/${userProfile.uid}`);
+
+            const cloudRes = await fetch(
+                'https://api.cloudinary.com/v1_1/dvqwqpwyo/image/upload',
+                { method: 'POST', body: formData }
+            );
+            const cloudData = await cloudRes.json();
+            if (!cloudData.secure_url) throw new Error('Cloudinary upload failed');
 
             setPhase('verifying');
 
             const res = await apiClient.post('/api/iris/verify', {
                 studentId: userProfile.uid,
                 lectureId,
-                imagePath: path,
+                imagePath: cloudData.secure_url,
             });
 
             setResult(res.data);
@@ -108,12 +126,17 @@ export default function MarkAttendanceScreen() {
         return (
             <View style={s.screen}>
                 <View style={s.cameraContainer}>
-                    <CameraView ref={cameraRef} style={s.camera} facing="front">
-                        <View style={s.overlay}>
-                            <View style={s.ovalGuide} />
+                    <CameraView ref={cameraRef} style={s.camera} facing="front" />
+                    {/* Overlay outside CameraView to avoid children warning */}
+                    <View style={s.overlay}>
+                        <View style={s.ovalGuide} />
+                        {countdown !== null && (
+                            <Text style={s.countdown}>{countdown}</Text>
+                        )}
+                        {countdown === null && (
                             <Text style={s.guideText}>Hold still, then tap Scan</Text>
-                        </View>
-                    </CameraView>
+                        )}
+                    </View>
                 </View>
 
                 <View style={s.capturePanel}>
@@ -148,6 +171,8 @@ export default function MarkAttendanceScreen() {
     );
 }
 
+function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
+
 const s = StyleSheet.create({
     screen: { flex: 1, backgroundColor: '#0B0D14' },
     centeredScreen: { flex: 1, backgroundColor: '#F5F3EF', justifyContent: 'center', alignItems: 'center', padding: 32 },
@@ -158,11 +183,12 @@ const s = StyleSheet.create({
     startBtn: { backgroundColor: '#0B0D14', borderRadius: 14, padding: 16, paddingHorizontal: 40, alignItems: 'center', marginBottom: 12 },
     startBtnText: { color: '#F5F3EF', fontSize: 15, fontWeight: '700' },
 
-    cameraContainer: { flex: 1 },
+    cameraContainer: { flex: 1, position: 'relative' },
     camera: { flex: 1 },
-    overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 24 },
+    overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', gap: 24 },
     ovalGuide: { width: 200, height: 260, borderRadius: 130, borderWidth: 3, borderColor: '#F5F3EF', borderStyle: 'dashed', opacity: 0.85 },
-    guideText: { color: '#F5F3EF', fontSize: 13, opacity: 0.8 },
+    countdown: { position: 'absolute', fontSize: 72, fontWeight: '800', color: '#F5F3EF', opacity: 0.9 },
+    guideText: { color: '#F5F3EF', fontSize: 13, opacity: 0.8, position: 'absolute', bottom: 40 },
 
     capturePanel: { backgroundColor: '#FAF8F4', padding: 28, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
     captureTitle: { fontSize: 18, fontWeight: '700', color: '#0B0D14', marginBottom: 6 },

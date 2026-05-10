@@ -3,35 +3,37 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, ActivityIndicator, Alert
 } from 'react-native';
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '../../firebase';
+import { router } from 'expo-router';
+import { useAuth } from '../../context/AuthContext';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !password) { Alert.alert('Error', 'Enter email and password.'); return; }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // AuthContext picks up the auth state change and routes accordingly
+      const data = await login(email, password);
+      const roleRoutes = {
+        admin: '/(admin)/dashboard',
+        teacher: '/(teacher)/dashboard',
+        student: '/(student)/dashboard',
+      };
+      const route = roleRoutes[data.user.role] || '/auth/login';
+      router.replace(route);
     } catch (err) {
-      Alert.alert('Sign-in failed', getFirebaseErrorMessage(err.code));
+      const message = err.response?.data?.detail || 'Sign-in failed. Please try again.';
+      Alert.alert('Sign-in failed', message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!email) { Alert.alert('Enter your email first.'); return; }
-    try {
-      await sendPasswordResetEmail(auth, email);
-      Alert.alert('Email sent', 'Check your inbox for a password reset link.');
-    } catch {
-      Alert.alert('Error', 'Could not send reset email.');
-    }
+  const handleForgotPassword = () => {
+    Alert.alert('Reset Password', 'Please contact your administrator to reset your password.');
   };
 
   return (
@@ -77,17 +79,6 @@ export default function LoginScreen() {
       </View>
     </ScrollView>
   );
-}
-
-function getFirebaseErrorMessage(code) {
-  const map = {
-    'auth/user-not-found': 'No account with that email.',
-    'auth/wrong-password': 'Incorrect password.',
-    'auth/invalid-email': 'Invalid email address.',
-    'auth/too-many-requests': 'Too many attempts. Try again later.',
-    'auth/invalid-credential': 'Invalid credentials.',
-  };
-  return map[code] || 'Sign-in failed. Please try again.';
 }
 
 const s = StyleSheet.create({

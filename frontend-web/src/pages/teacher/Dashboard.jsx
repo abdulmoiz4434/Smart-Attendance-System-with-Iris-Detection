@@ -28,8 +28,9 @@ export default function TeacherDashboard() {
   // Real-time listener: today's lectures for this teacher
   useEffect(() => {
     if (!userProfile?.uid) return;
-    const today = getTodayISO();
-    const q = query(
+      const today = getTodayISO();
+      console.log('Querying lectures for date:', today, '| Teacher UID:', userProfile.uid);
+      const q = query(
       collection(db, 'lectures'),
       where('teacherId', '==', userProfile.uid),
       where('scheduledDate', '==', today),

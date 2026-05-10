@@ -4,9 +4,8 @@ import {
     ActivityIndicator, Alert, ScrollView
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { storage, db } from '../../firebase';
+import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
 import apiClient from '../../api/client';
 import { router } from 'expo-router';
@@ -57,17 +56,35 @@ export default function EnrollIrisScreen() {
 
         try {
             const photo = await cameraRef.current.takePictureAsync({ quality: 0.8, base64: false });
-            const path = `iris/${userProfile.uid}/enroll_${capturedPaths.length + 1}_${Date.now()}.jpg`;
 
             setPhase('uploading');
 
-            // Upload to Firebase Storage
-            const response = await fetch(photo.uri);
-            const blob = await response.blob();
-            const storageRef = ref(storage, path);
-            await uploadBytes(storageRef, blob);
+            // Upload to Cloudinary
+            const formData = new FormData();
+            formData.append('file', {
+                uri: photo.uri,
+                type: 'image/jpeg',
+                name: `enroll_${capturedPaths.length + 1}_${Date.now()}.jpg`,
+            });
+            formData.append('upload_preset', 'iris_unsigned');
+            formData.append('folder', `iris/${userProfile.uid}`);
 
-            const newPaths = [...capturedPaths, path];
+            let cloudRes;
+try {
+    cloudRes = await fetch(
+        `https://api.cloudinary.com/v1_1/dvqwqpwyo/image/upload`,
+        { method: 'POST', body: formData }
+    );
+    console.log('FETCH STATUS:', cloudRes.status, cloudRes.ok);
+} catch (fetchErr) {
+    console.error('FETCH FAILED (network error):', fetchErr.message);
+    throw fetchErr;
+}
+const cloudData = await cloudRes.json();
+console.log('CLOUDINARY RESPONSE:', JSON.stringify(cloudData));
+if (!cloudData.secure_url) throw new Error(`Cloudinary upload failed: ${JSON.stringify(cloudData)}`);
+
+            const newPaths = [...capturedPaths, cloudData.secure_url];
             setCapturedPaths(newPaths);
 
             if (newPaths.length < REQUIRED_FRAMES) {
@@ -78,7 +95,10 @@ export default function EnrollIrisScreen() {
                 await enrollIris(newPaths);
             }
         } catch (err) {
-            setErrorMsg('Image capture failed. Please try again.');
+            console.error('CAPTURE ERROR:', err);
+            console.error('ERROR MESSAGE:', err.message);
+            console.error('ERROR STACK:', err.stack);
+            setErrorMsg(err.message || 'Image capture failed. Please try again.');
             setPhase('error');
         }
     };
@@ -110,15 +130,14 @@ export default function EnrollIrisScreen() {
         return (
             <View style={s.screen}>
                 <View style={s.cameraContainer}>
-                    <CameraView ref={cameraRef} style={s.camera} facing="front">
-                        {/* Iris guide overlay */}
-                        <View style={s.overlay}>
-                            <View style={s.ovalGuide} />
-                            {countdown !== null && (
-                                <Text style={s.countdown}>{countdown}</Text>
-                            )}
-                        </View>
-                    </CameraView>
+                    <CameraView ref={cameraRef} style={s.camera} facing="front" />
+                    {/* Iris guide overlay — outside CameraView, absolutely positioned */}
+                    <View style={s.overlay}>
+                        <View style={s.ovalGuide} />
+                        {countdown !== null && (
+                            <Text style={s.countdown}>{countdown}</Text>
+                        )}
+                    </View>
                 </View>
 
                 <View style={s.capturePanel}>
@@ -240,10 +259,9 @@ const s = StyleSheet.create({
     startBtnText: { color: '#F5F3EF', fontSize: 15, fontWeight: '700' },
 
     // Camera
-    cameraContainer: { flex: 1 },
+    cameraContainer: { flex: 1, position: 'relative' },
     camera: { flex: 1 },
-    overlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    ovalGuide: {
+    overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },    ovalGuide: {
         width: 200, height: 260,
         borderRadius: 130,
         borderWidth: 3, borderColor: '#F5F3EF',

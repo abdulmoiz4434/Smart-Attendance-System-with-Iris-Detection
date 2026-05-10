@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from '../firebase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../api/client';
 
 const AuthContext = createContext(null);
@@ -10,31 +9,34 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
+    // Restore session from storage on app start
+    AsyncStorage.getItem('auth_token').then(async (token) => {
+      if (token) {
         try {
-          const idToken = await firebaseUser.getIdToken();
-          const res = await apiClient.post('/api/auth/verify-token', { idToken });
+          const res = await apiClient.get('/api/auth/me');
           setUserProfile(res.data);
         } catch {
-          await signOut(auth);
-          setUserProfile(null);
+          await AsyncStorage.removeItem('auth_token');
         }
-      } else {
-        setUserProfile(null);
       }
       setLoading(false);
     });
-    return unsubscribe;
   }, []);
 
+  const login = async (email, password) => {
+    const res = await apiClient.post('/api/auth/mobile-login', { email, password });
+    await AsyncStorage.setItem('auth_token', res.data.token);
+    setUserProfile(res.data.user);
+    return res.data;
+  };
+
   const logout = async () => {
-    await signOut(auth);
+    await AsyncStorage.removeItem('auth_token');
     setUserProfile(null);
   };
 
   return (
-    <AuthContext.Provider value={{ userProfile, loading, logout }}>
+    <AuthContext.Provider value={{ userProfile, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

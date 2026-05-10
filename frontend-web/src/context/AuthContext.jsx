@@ -1,13 +1,13 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '../firebase';
-import { verifyToken } from '../api/authApi';
+import apiClient from '../api/client';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(null);  // Firebase user
-  const [userProfile, setUserProfile] = useState(null);   // { uid, role, email, status }
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
 
@@ -16,32 +16,32 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         try {
           const idToken = await firebaseUser.getIdToken();
-          const profile = await verifyToken(idToken);
+          const loginRes = await apiClient.post('/api/auth/web-login', { idToken });
+          localStorage.setItem('jwt', loginRes.data.token);
           setCurrentUser(firebaseUser);
-          setUserProfile(profile);
+          setUserProfile(loginRes.data.user);
           setAuthError(null);
         } catch (err) {
-          if (err.response?.status === 403) {
-            setAuthError('inactive');
-          } else {
-            setAuthError('error');
-          }
+          if (err.response?.status === 403) setAuthError('inactive');
+          else setAuthError('error');
           await signOut(auth);
+          localStorage.removeItem('jwt');
           setCurrentUser(null);
           setUserProfile(null);
         }
       } else {
+        localStorage.removeItem('jwt');
         setCurrentUser(null);
         setUserProfile(null);
       }
       setLoading(false);
     });
-
     return unsubscribe;
   }, []);
 
   const logout = async () => {
     await signOut(auth);
+    localStorage.removeItem('jwt');
     setCurrentUser(null);
     setUserProfile(null);
   };

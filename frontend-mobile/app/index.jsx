@@ -13,7 +13,7 @@ export default function Index() {
     );
   }
 
-  if (!userProfile) return <Redirect href="/(auth)/login" />;
+  if (!userProfile) return <Redirect href="/auth/login" />;
 
   const roleRoutes = {
     admin: '/(admin)/dashboard',
@@ -21,5 +21,5 @@ export default function Index() {
     student: '/(student)/dashboard',
   };
 
-  return <Redirect href={roleRoutes[userProfile.role] || '/(auth)/login'} />;
+  return <Redirect href={roleRoutes[userProfile.role] || '/auth/login'} />;
 }

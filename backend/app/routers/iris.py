@@ -124,7 +124,13 @@ async def verify_iris(
 
     fresh_embedding = compute_embedding_from_bytes(image_bytes)
     if fresh_embedding is None:
-        raise HTTPException(status_code=422, detail="Could not process the iris image")
+        return {
+            "matched": False,
+            "score": 0,
+            "threshold": threshold,
+            "status": "no_iris",
+            "message": "No iris detected. Please face the camera and ensure good lighting.",
+        }
 
     # Compute similarity
     score = cosine_similarity(fresh_embedding.tolist(), stored_embedding)
