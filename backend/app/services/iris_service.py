@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from scipy.ndimage import convolve
-from typing import List
+from typing import List, Optional, Tuple
 from PIL import Image
 
 
@@ -56,28 +56,58 @@ def extract_gabor_features(gray_roi: np.ndarray) -> np.ndarray:
 
 # ── Preprocessing ─────────────────────────────────────────────────────────────
 
-def preprocess_iris(image_bytes: bytes) -> np.ndarray | None:
+def _detect_face(gray: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
+    """
+    Run Haar cascade face detection. Returns (x, y, w, h) of the largest
+    detected face, or None if no face found.
+    Uses two passes: strict first, relaxed second (handles close-up selfies).
+    """
+    face_cascade = cv2.CascadeClassifier(
+        cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+    )
+    # Strict pass — avoids false positives on walls/ceilings
+    faces = face_cascade.detectMultiScale(
+        gray, scaleFactor=1.1, minNeighbors=5, minSize=(80, 80)
+    )
+    if len(faces) == 0:
+        # Relaxed pass — handles close-up selfies where face fills frame
+        faces = face_cascade.detectMultiScale(
+            gray, scaleFactor=1.05, minNeighbors=3, minSize=(50, 50)
+        )
+    if len(faces) == 0:
+        return None
+    # Return largest face
+    faces = sorted(faces, key=lambda f: f[2] * f[3], reverse=True)
+    x, y, w, h = faces[0]
+    return (x, y, w, h)
+
+
+def preprocess_iris(image_bytes: bytes, require_face: bool = True) -> np.ndarray | None:
+    """
+    Preprocess an iris image from raw bytes.
+    Returns a grayscale ROI (iris crop or eye region) or None if rejected.
+
+    require_face=True (default for verify): rejects images with no detected face.
+    require_face=False (enrollment fallback): allows full-image Gabor if no face.
+    """
     nparr = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     if img is None:
         return None
 
-    # Try face detection — use face ROI if found, fall back to full image
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
     gray_full = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    face = _detect_face(gray_full)
 
-    # Relaxed params: smaller minSize, lower minNeighbors for mobile selfies
-    faces = face_cascade.detectMultiScale(
-        gray_full, scaleFactor=1.1, minNeighbors=3, minSize=(50, 50)
-    )
-
-    if len(faces) > 0:
-        x, y, w, h = faces[0]
+    if face is None:
+        if require_face:
+            # Hard reject — no face means not a valid iris capture
+            return None
+        # Enrollment fallback: use full image (caller decides)
+        gray = gray_full
+    else:
+        x, y, w, h = face
         face_roi = img[y:y+h, x:x+w]
         gray = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
-    else:
-        # No face detected — use full image (mobile close-up selfies often fail cascade)
-        gray = gray_full
 
     # CLAHE contrast normalisation
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
@@ -108,7 +138,7 @@ def preprocess_iris(image_bytes: bytes) -> np.ndarray | None:
             return enhanced
         return roi
     else:
-        # Face found but no iris circle — use upper-half of face (eye region)
+        # No iris circle — use upper-half of face (eye region)
         h, w = enhanced.shape
         return enhanced[0:h//2, :]
 
@@ -126,14 +156,16 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
 
 # ── Public pipeline functions ─────────────────────────────────────────────────
 
-def compute_embedding_from_bytes(image_bytes: bytes):
+def compute_embedding_from_bytes(image_bytes: bytes, require_face: bool = True):
     """
     Extract a 512-float iris embedding from raw image bytes.
     Primary: PyTorch CNN (IrisEmbeddingNet) if iris_model.pt is present.
     Fallback: Gabor filter bank (always available, no extra deps).
-    DeepFace/Facenet removed — not installed in prod.
+
+    require_face=True (default): returns None if no face detected — hard reject.
+    require_face=False: used during enrollment where close-up may skip cascade.
     """
-    roi = preprocess_iris(image_bytes)
+    roi = preprocess_iris(image_bytes, require_face=require_face)
     if roi is None or roi.size == 0:
         return None
 

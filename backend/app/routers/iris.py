@@ -48,9 +48,9 @@ async def enroll_iris(
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to download {path}: {str(e)}")
 
-        embedding = compute_embedding_from_bytes(image_bytes)
+        embedding = compute_embedding_from_bytes(image_bytes, require_face=False)
         if embedding is None:
-            raise HTTPException(status_code=422, detail=f"Could not process iris image: {path}")
+            raise HTTPException(status_code=422, detail=f"No face detected in image: {path}. Please ensure your face is clearly visible.")
         embeddings.append(embedding)
 
     # Average the 3 embeddings
@@ -125,15 +125,15 @@ async def verify_iris(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to download image: {str(e)}")
 
-    fresh_embedding = compute_embedding_from_bytes(image_bytes)
+    fresh_embedding = compute_embedding_from_bytes(image_bytes, require_face=True)
     if fresh_embedding is None:
-        logger.warning(f"[iris/verify] No iris ROI extracted for student={payload.studentId}")
+        logger.warning(f"[iris/verify] No face detected for student={payload.studentId}")
         return {
             "matched": False,
             "score": 0,
             "threshold": threshold,
-            "status": "no_iris",
-            "message": "No iris detected. Please face the camera and ensure good lighting.",
+            "status": "no_face",
+            "message": "No face detected. Please face the camera directly and ensure good lighting.",
         }
 
     # Compute similarity

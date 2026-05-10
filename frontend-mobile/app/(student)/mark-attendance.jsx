@@ -116,7 +116,7 @@ export default function MarkAttendanceScreen() {
                 <View style={result.matched ? s.successIcon : s.errorIcon}>
                     <Text style={{ fontSize: 32 }}>{result.matched ? '✓' : '✕'}</Text>
                 </View>
-                <Text style={s.resultTitle}>{result.matched ? 'Attendance Submitted' : result.status === 'no_iris' ? 'Face Not Detected' : 'Iris Not Matched'}</Text>
+                <Text style={s.resultTitle}>{result.matched ? 'Attendance Submitted' : (result.status === 'no_iris' || result.status === 'no_face') ? 'Face Not Detected' : 'Iris Not Matched'}</Text>
                 <Text style={s.resultSub}>{result.message}</Text>
                 {result.score > 0 && (
                     <Text style={s.scoreText}>Confidence: {(result.score * 100).toFixed(1)}%</Text>
