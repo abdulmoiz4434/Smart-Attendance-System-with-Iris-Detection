@@ -70,7 +70,7 @@ async def create_user(
 @router.get("/users")
 async def list_users(
     role: str = None,
-    current_user: dict = Depends(require_role("admin"))
+    current_user: dict = Depends(require_role("admin", "teacher"))
 ):
     db = get_firestore()
     query = db.collection("users")

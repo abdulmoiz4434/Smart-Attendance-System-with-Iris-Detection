@@ -30,7 +30,13 @@ async def student_subject_report(
         .stream()
     )
     lectures = [l.to_dict() for l in all_lectures]
-    non_cancelled = [l for l in lectures if l.get("status") != "cancelled"]
+    # With this:
+    from datetime import date as date_type
+    today_str = date_type.today().isoformat()
+    non_cancelled = [
+        l for l in lectures
+        if l.get("status") != "cancelled" and l.get("scheduledDate", "") <= today_str
+    ]
     total = len(non_cancelled)
 
     # Attendance records for this student in this subject
@@ -67,6 +73,116 @@ async def student_subject_report(
         "belowThreshold": percentage < threshold and total > 0,
     }
 
+@router.get("/student/{uid}/all-subjects")
+async def student_all_subjects_report(
+    uid: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Returns attendance stats for all subjects a student is enrolled in.
+    Single endpoint replacing N separate /student/{uid}/subject/{id} calls.
+    Firestore queries run concurrently via asyncio to minimise wall-clock time.
+    """
+    if current_user["role"] == "student" and current_user["uid"] != uid:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    import asyncio
+    from datetime import date as date_type
+    from concurrent.futures import ThreadPoolExecutor
+
+    db = get_firestore()
+    today_str = date_type.today().isoformat()
+
+    # Helper: run a blocking Firestore call in a thread so we can await it
+    loop = asyncio.get_event_loop()
+    executor = ThreadPoolExecutor(max_workers=8)
+
+    def _fetch_config():
+        doc = db.collection("systemConfig").document("main").get()
+        cfg = doc.to_dict() if doc.exists else {}
+        return cfg.get("attendanceThreshold", 75)
+
+    def _fetch_subjects():
+        docs = db.collection("subjects").stream()
+        return [
+            s.to_dict() for s in docs
+            if uid in s.to_dict().get("enrolledStudentIds", [])
+        ]
+
+    # Run config + subjects fetch concurrently
+    threshold, enrolled_subjects = await asyncio.gather(
+        loop.run_in_executor(executor, _fetch_config),
+        loop.run_in_executor(executor, _fetch_subjects),
+    )
+
+    if not enrolled_subjects:
+        return []
+
+    subject_ids = [s["subjectId"] for s in enrolled_subjects]
+
+    # Build per-chunk fetch functions and run ALL chunks concurrently
+    def _fetch_lectures_chunk(chunk):
+        docs = db.collection("lectures").where("subjectId", "in", chunk).stream()
+        return [d.to_dict() for d in docs]
+
+    def _fetch_attendance_chunk(chunk):
+        docs = (
+            db.collection("attendance")
+            .where("studentId", "==", uid)
+            .where("subjectId", "in", chunk)
+            .stream()
+        )
+        return [d.to_dict() for d in docs]
+
+    chunks = [subject_ids[i:i+10] for i in range(0, len(subject_ids), 10)]
+
+    # Fire all lecture chunks + all attendance chunks simultaneously
+    lec_tasks = [loop.run_in_executor(executor, _fetch_lectures_chunk, c) for c in chunks]
+    att_tasks = [loop.run_in_executor(executor, _fetch_attendance_chunk, c) for c in chunks]
+
+    results_raw = await asyncio.gather(*lec_tasks, *att_tasks)
+    mid = len(chunks)
+    all_lectures  = [doc for chunk_result in results_raw[:mid] for doc in chunk_result]
+    all_attendance = [doc for chunk_result in results_raw[mid:] for doc in chunk_result]
+
+    # Group by subjectId
+    lectures_by_subject: dict = {}
+    for lec in all_lectures:
+        lectures_by_subject.setdefault(lec["subjectId"], []).append(lec)
+
+    attendance_by_subject: dict = {}
+    for rec in all_attendance:
+        attendance_by_subject.setdefault(rec["subjectId"], []).append(rec)
+
+    output = []
+    for subject in enrolled_subjects:
+        sid = subject["subjectId"]
+        past_lectures = [
+            l for l in lectures_by_subject.get(sid, [])
+            if l.get("status") != "cancelled" and l.get("scheduledDate", "") <= today_str
+        ]
+        total = len(past_lectures)
+        records = attendance_by_subject.get(sid, [])
+        approved = sum(1 for r in records if r.get("status") in ("approved", "manual"))
+        pending  = sum(1 for r in records if r.get("status") == "pending")
+        rejected = sum(1 for r in records if r.get("status") == "rejected")
+        absent   = total - len(records)
+        percentage = round((approved / total) * 100, 1) if total > 0 else 0.0
+
+        output.append({
+            "studentId":      uid,
+            "subjectId":      sid,
+            "total":          total,
+            "approved":       approved,
+            "pending":        pending,
+            "rejected":       rejected,
+            "absent":         absent,
+            "percentage":     percentage,
+            "threshold":      threshold,
+            "belowThreshold": percentage < threshold and total > 0,
+        })
+
+    return output
 
 @router.get("/subject/{subject_id}")
 async def subject_report(

@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "installedPowers": [
+    {
+      "name": "firebase",
+      "registryId": "kiro-recommended"
+    },
+    {
+      "name": "context7",
+      "registryId": "kiro-recommended"
+    }
+  ],
+  "dismissedAutoInstalls": []
+}

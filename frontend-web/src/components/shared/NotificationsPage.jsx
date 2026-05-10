@@ -134,7 +134,7 @@ export default function NotificationsPage({ Layout }) {
                 )}
             </div>
 
-            {canCompose && <ComposeForm />}
+            {canCompose && <ComposeForm onSent={() => {}} />}
 
             <div style={list}>
                 {notifications.length === 0 && (

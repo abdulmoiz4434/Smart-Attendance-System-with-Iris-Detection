@@ -67,7 +67,8 @@ export default function SubjectsScreen() {
     setSaving(true);
     try {
       const res = await apiClient.post('/api/subjects', form);
-      await apiClient.post(`/api/subjects/${res.data.subjectId}/generate-lectures`);
+      const subjectId = res.data.subjectId;
+      await apiClient.post(`/api/subjects/${subjectId}/generate-lectures`);
       setShowCreate(false);
       setForm(defaultForm());
       loadAll();
@@ -195,7 +196,7 @@ export default function SubjectsScreen() {
               <Text style={s.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.submitBtn} onPress={handleCreate} disabled={saving}>
-              {saving ? <ActivityIndicator color="#F5F3EF" /> : <Text style={s.submitBtnText}>Create & Generate</Text>}
+              {saving ? <ActivityIndicator color="#F5F3EF" /> : <Text style={s.submitBtnText}>Create Subject</Text>}
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -274,7 +275,7 @@ const s = StyleSheet.create({
   subjectMeta: { fontSize: 12, color: '#6B6760', marginBottom: 2 },
   enrollBtn: { marginTop: 12, borderWidth: 1, borderColor: '#E5E1DA', borderRadius: 12, padding: 10, alignItems: 'center' },
   enrollBtnText: { fontSize: 13, color: '#6B6760', fontWeight: '500' },
-  modal: { backgroundColor: '#F5F3EF', padding: 24 },
+  modal: { flex: 1, backgroundColor: '#F5F3EF', padding: 24 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, marginTop: 12 },
   modalTitle: { fontSize: 20, fontWeight: '700', color: '#0B0D14' },
   modalClose: { fontSize: 18, color: '#9B9790' },

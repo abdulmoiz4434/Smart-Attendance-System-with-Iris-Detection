@@ -10,3 +10,4 @@ torchvision==0.21.0
 python-multipart==0.0.9
 Pillow==10.4.0
 scipy==1.14.1
+face_recognition

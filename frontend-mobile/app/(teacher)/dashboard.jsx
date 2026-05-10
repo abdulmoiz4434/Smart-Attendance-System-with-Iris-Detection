@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import apiClient from '../../api/client';
 import { router } from 'expo-router';
@@ -32,7 +32,6 @@ export default function TeacherDashboard() {
       setMySubjects(mine);
       const myIds = mine.map(s => s.subjectId);
       const myLectures = lecRes.data.filter(l => myIds.includes(l.subjectId));
-      myLectures.sort((a, b) => a.startTime.localeCompare(b.startTime));
       setTodayLectures(myLectures);
     } catch (e) {
       console.error(e);
@@ -41,19 +40,9 @@ export default function TeacherDashboard() {
     }
   }
 
-  async function toggleAttendance(lecture) {
-    try {
-      await apiClient.patch(`/api/lectures/${lecture.lectureId}`, {
-        attendanceOpen: !lecture.attendanceOpen,
-      });
-      loadData();
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  const subjectMap = Object.fromEntries(mySubjects.map(s => [s.subjectId, s]));
   const firstName = userProfile?.name?.split(' ')[0] || userProfile?.email;
+  const initials = userProfile?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'T';
+  const openLectures = todayLectures.filter(l => l.attendanceOpen).length;
 
   if (loading) {
     return (
@@ -64,7 +53,9 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <ScrollView style={s.screen} contentContainerStyle={{ paddingBottom: 40 }}>
+    <ScrollView style={s.screen} contentContainerStyle={{ paddingBottom: 48 }}>
+
+      {/* Header */}
       <View style={s.header}>
         <View>
           <Text style={s.eyebrow}>TEACHER PORTAL</Text>
@@ -73,19 +64,20 @@ export default function TeacherDashboard() {
             {new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long' })}
           </Text>
         </View>
-        <TouchableOpacity onPress={logout} style={s.avatarTile}>
-          <Text style={s.avatarText}>
-            {userProfile?.name?.split(' ').map(w => w[0]).join('').slice(0, 2) || 'T'}
-          </Text>
+        <TouchableOpacity
+          style={s.bellBtn}
+          onPress={() => router.push('/(teacher)/notifications')}
+        >
+          <Text style={s.bellIcon}>🔔</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Summary */}
+      {/* Hero stats card */}
       <View style={s.heroCard}>
         <View style={s.heroStats}>
           <View style={s.heroStat}>
             <Text style={s.heroVal}>{mySubjects.length}</Text>
-            <Text style={s.heroLabel}>Subjects</Text>
+            <Text style={s.heroLabel}>My Subjects</Text>
           </View>
           <View style={s.heroDivider} />
           <View style={s.heroStat}>
@@ -94,54 +86,57 @@ export default function TeacherDashboard() {
           </View>
           <View style={s.heroDivider} />
           <View style={s.heroStat}>
-            <Text style={s.heroVal}>{todayLectures.filter(l => l.attendanceOpen).length}</Text>
+            <Text style={s.heroVal}>{openLectures}</Text>
             <Text style={s.heroLabel}>Open</Text>
           </View>
         </View>
       </View>
 
-      {/* Today's lectures */}
-      <Text style={s.sectionLabel}>TODAY'S LECTURES</Text>
-      {todayLectures.length === 0 ? (
-        <View style={s.emptyCard}>
-          <Text style={s.emptyText}>No lectures scheduled today</Text>
-        </View>
-      ) : (
-        todayLectures.map(lec => {
-          const sub = subjectMap[lec.subjectId];
-          return (
-            <TouchableOpacity
-              key={lec.lectureId}
-              style={s.lecCard}
-              onPress={() => router.push({ pathname: '/(teacher)/lecture-detail', params: { lectureId: lec.lectureId } })}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={s.lecName}>{sub?.name || 'Lecture'}</Text>
-                <Text style={s.lecMeta}>{sub?.courseCode} · {lec.startTime}–{lec.endTime}</Text>
-              </View>
-              <TouchableOpacity
-                style={[s.toggleBtn, { backgroundColor: lec.attendanceOpen ? '#D4EBD8' : '#EDE9E3' }]}
-                onPress={() => toggleAttendance(lec)}
-              >
-                <Text style={[s.toggleText, { color: lec.attendanceOpen ? '#174520' : '#6B6760' }]}>
-                  {lec.attendanceOpen ? 'Close' : 'Open'}
-                </Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          );
-        })
-      )}
+      {/* Module cards */}
+      <Text style={s.sectionLabel}>QUICK ACCESS</Text>
+      <View style={s.cardsGrid}>
 
-      {/* My subjects */}
-      <Text style={s.sectionLabel}>MY SUBJECTS</Text>
-      {mySubjects.map(sub => (
-        <View key={sub.subjectId} style={s.subjectRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.subjectName}>{sub.name}</Text>
-            <Text style={s.subjectMeta}>{sub.courseCode} · {sub.enrolledStudentIds?.length || 0} students</Text>
+        <TouchableOpacity
+          style={s.moduleCard}
+          onPress={() => router.push('/(teacher)/lectures')}
+        >
+          <View style={s.iconTile}>
+            <Text style={s.iconText}>🎓</Text>
           </View>
-        </View>
-      ))}
+          <Text style={s.moduleTitle}>Today's Lectures</Text>
+          <Text style={s.moduleSub}>
+            {todayLectures.length} lecture{todayLectures.length !== 1 ? 's' : ''} · {openLectures} open
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={s.moduleCard}
+          onPress={() => router.push('/(teacher)/subjects')}
+        >
+          <View style={s.iconTile}>
+            <Text style={s.iconText}>📚</Text>
+          </View>
+          <Text style={s.moduleTitle}>My Subjects</Text>
+          <Text style={s.moduleSub}>
+            {mySubjects.length} subject{mySubjects.length !== 1 ? 's' : ''} assigned
+          </Text>
+        </TouchableOpacity>
+
+      </View>
+
+      {/* Sign out */}
+      <TouchableOpacity
+        style={s.signOutBtn}
+        onPress={() =>
+          Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Sign Out', style: 'destructive', onPress: logout },
+          ])
+        }
+      >
+        <Text style={s.signOutText}>Sign Out</Text>
+      </TouchableOpacity>
+
     </ScrollView>
   );
 }
@@ -149,27 +144,30 @@ export default function TeacherDashboard() {
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F5F3EF' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F3EF' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 24, paddingTop: 52 },
+
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 24, paddingTop: 52, paddingBottom: 20 },
   eyebrow: { fontSize: 9, fontWeight: '500', color: '#9B9790', letterSpacing: 2, marginBottom: 4 },
   greeting: { fontSize: 26, fontWeight: '700', color: '#0B0D14' },
   date: { fontSize: 12, color: '#9B9790', marginTop: 2 },
-  avatarTile: { width: 44, height: 44, borderRadius: 13, backgroundColor: '#0B0D14', justifyContent: 'center', alignItems: 'center' },
-  avatarText: { color: '#F5F3EF', fontWeight: '700', fontSize: 16 },
-  heroCard: { marginHorizontal: 24, backgroundColor: '#0B0D14', borderRadius: 22, padding: 24, marginBottom: 24 },
+  bellBtn: { width: 44, height: 44, borderRadius: 13, backgroundColor: '#FAF8F4', borderWidth: 1, borderColor: '#E5E1DA', justifyContent: 'center', alignItems: 'center' },
+  bellIcon: { fontSize: 20 },
+
+  heroCard: { marginHorizontal: 24, backgroundColor: '#0B0D14', borderRadius: 22, padding: 24, marginBottom: 28 },
   heroStats: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
   heroStat: { alignItems: 'center' },
   heroVal: { fontSize: 28, fontWeight: '700', color: '#F5F3EF' },
   heroLabel: { fontSize: 11, color: '#9B9790', marginTop: 2 },
   heroDivider: { width: 1, height: 36, backgroundColor: '#2A2E40' },
-  sectionLabel: { fontSize: 9, fontWeight: '500', color: '#9B9790', letterSpacing: 2, marginHorizontal: 24, marginBottom: 10, marginTop: 4 },
-  lecCard: { marginHorizontal: 24, marginBottom: 10, backgroundColor: '#FAF8F4', borderRadius: 16, borderWidth: 1, borderColor: '#E5E1DA', padding: 16, flexDirection: 'row', alignItems: 'center' },
-  lecName: { fontSize: 15, fontWeight: '700', color: '#0B0D14' },
-  lecMeta: { fontSize: 12, color: '#6B6760', marginTop: 2 },
-  toggleBtn: { borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14 },
-  toggleText: { fontWeight: '700', fontSize: 13 },
-  emptyCard: { marginHorizontal: 24, backgroundColor: '#FAF8F4', borderRadius: 14, borderWidth: 1, borderColor: '#E5E1DA', padding: 20, alignItems: 'center' },
-  emptyText: { fontSize: 13, color: '#9B9790' },
-  subjectRow: { marginHorizontal: 24, marginBottom: 10, backgroundColor: '#FAF8F4', borderRadius: 14, borderWidth: 1, borderColor: '#E5E1DA', padding: 14 },
-  subjectName: { fontSize: 14, fontWeight: '600', color: '#0B0D14' },
-  subjectMeta: { fontSize: 12, color: '#9B9790', marginTop: 2 },
+
+  sectionLabel: { fontSize: 9, fontWeight: '500', color: '#9B9790', letterSpacing: 2, marginHorizontal: 24, marginBottom: 12 },
+
+  cardsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 24, gap: 12, marginBottom: 28 },
+  moduleCard: { flex: 1, minWidth: '44%', backgroundColor: '#FAF8F4', borderRadius: 20, borderWidth: 1, borderColor: '#E5E1DA', padding: 20 },
+  iconTile: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#0B0D14', justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
+  iconText: { fontSize: 18 },
+  moduleTitle: { fontSize: 14, fontWeight: '700', color: '#0B0D14', marginBottom: 4 },
+  moduleSub: { fontSize: 11, color: '#9B9790' },
+
+  signOutBtn: { marginHorizontal: 24, borderWidth: 1, borderColor: '#E5E1DA', borderRadius: 14, padding: 14, alignItems: 'center' },
+  signOutText: { fontSize: 14, color: '#6B6760', fontWeight: '500' },
 });

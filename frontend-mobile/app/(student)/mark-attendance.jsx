@@ -38,10 +38,12 @@ export default function MarkAttendanceScreen() {
         }
         setCountdown(null);
 
-        setPhase('uploading');
-
+        // takePictureAsync MUST run while phase='capturing' so CameraView is still mounted
         try {
             const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
+            console.log('[mark-attendance] photo captured:', photo.uri);
+
+            setPhase('uploading');
 
             // Upload to Cloudinary
             const formData = new FormData();
@@ -53,14 +55,24 @@ export default function MarkAttendanceScreen() {
             formData.append('upload_preset', 'iris_unsigned');
             formData.append('folder', `iris/${userProfile.uid}`);
 
-            const cloudRes = await fetch(
-                'https://api.cloudinary.com/v1_1/dvqwqpwyo/image/upload',
-                { method: 'POST', body: formData }
-            );
+            let cloudRes;
+            try {
+                cloudRes = await fetch(
+                    'https://api.cloudinary.com/v1_1/dvqwqpwyo/image/upload',
+                    { method: 'POST', body: formData }
+                );
+                console.log('[mark-attendance] Cloudinary status:', cloudRes.status, cloudRes.ok);
+            } catch (fetchErr) {
+                console.error('[mark-attendance] Cloudinary fetch FAILED (network):', fetchErr.message);
+                throw fetchErr;
+            }
+
             const cloudData = await cloudRes.json();
-            if (!cloudData.secure_url) throw new Error('Cloudinary upload failed');
+            console.log('[mark-attendance] Cloudinary response:', JSON.stringify(cloudData));
+            if (!cloudData.secure_url) throw new Error(`Cloudinary upload failed: ${JSON.stringify(cloudData)}`);
 
             setPhase('verifying');
+            console.log('[mark-attendance] calling /api/iris/verify with imagePath:', cloudData.secure_url);
 
             const res = await apiClient.post('/api/iris/verify', {
                 studentId: userProfile.uid,
@@ -68,10 +80,13 @@ export default function MarkAttendanceScreen() {
                 imagePath: cloudData.secure_url,
             });
 
+            console.log('[mark-attendance] verify response:', JSON.stringify(res.data));
             setResult(res.data);
             setPhase('result');
         } catch (err) {
-            const detail = err.response?.data?.detail || 'Verification failed';
+            console.error('[mark-attendance] ERROR:', err.message);
+            console.error('[mark-attendance] err.response:', JSON.stringify(err.response?.data));
+            const detail = err.response?.data?.detail || err.message || 'Verification failed';
             setResult({ matched: false, message: detail, score: 0 });
             setPhase('result');
         }
@@ -101,7 +116,7 @@ export default function MarkAttendanceScreen() {
                 <View style={result.matched ? s.successIcon : s.errorIcon}>
                     <Text style={{ fontSize: 32 }}>{result.matched ? '✓' : '✕'}</Text>
                 </View>
-                <Text style={s.resultTitle}>{result.matched ? 'Attendance Submitted' : 'Iris Not Matched'}</Text>
+                <Text style={s.resultTitle}>{result.matched ? 'Attendance Submitted' : result.status === 'no_iris' ? 'Face Not Detected' : 'Iris Not Matched'}</Text>
                 <Text style={s.resultSub}>{result.message}</Text>
                 {result.score > 0 && (
                     <Text style={s.scoreText}>Confidence: {(result.score * 100).toFixed(1)}%</Text>

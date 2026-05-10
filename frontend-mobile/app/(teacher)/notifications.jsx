@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { useAuth } from '../../context/AuthContext';
 import apiClient from '../../api/client';
 import { router } from 'expo-router';
 
 export default function NotificationsScreen() {
-  const { userProfile } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -50,7 +48,7 @@ export default function NotificationsScreen() {
         </View>
       ) : (
         notifications.map((n, i) => (
-          <View key={i} style={s.notifCard}>
+          <View key={n.id || n.notificationId || i} style={s.notifCard}>
             <Text style={s.notifTitle}>{n.title || 'Notification'}</Text>
             <Text style={s.notifBody}>{n.message || n.body}</Text>
             {n.createdAt && (

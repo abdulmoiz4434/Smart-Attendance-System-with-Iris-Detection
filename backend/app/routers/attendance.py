@@ -31,6 +31,7 @@ async def list_attendance(
     records = []
     for doc in docs:
         data = doc.to_dict()
+        data["docId"] = doc.id
         for key in ["markedAt", "approvedAt"]:
             if key in data and hasattr(data[key], "isoformat"):
                 data[key] = data[key].isoformat()

@@ -16,7 +16,10 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (res) => res,
   async (error) => {
-    if (error.response?.status === 403) {
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.detail === 'Account is inactive'
+    ) {
       await auth.signOut();
       localStorage.removeItem('jwt');
       window.location.href = '/login?reason=inactive';

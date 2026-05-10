@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import apiClient from '../../api/client';
 import { router } from 'expo-router';
+
 
 export default function AdminDashboard() {
   const { userProfile, logout } = useAuth();
@@ -56,11 +57,11 @@ export default function AdminDashboard() {
             {new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long' })}
           </Text>
         </View>
-        <TouchableOpacity onPress={logout} style={s.avatarTile}>
-          <Text style={s.avatarText}>
-            {userProfile?.name?.split(' ').map(w => w[0]).join('').slice(0, 2) || 'A'}
-          </Text>
-        </TouchableOpacity>
+        <View style={s.avatarTile}>
+        <Text style={s.avatarText}>
+          {userProfile?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'A'}
+        </Text>
+      </View>
       </View>
 
       {/* Stats grid */}
@@ -84,11 +85,12 @@ export default function AdminDashboard() {
       <Text style={s.sectionLabel}>QUICK ACTIONS</Text>
       <View style={s.actionsGrid}>
         {[
-          { label: 'Users',     icon: '👥', path: '/(admin)/users'     },
-          { label: 'Subjects',  icon: '📚', path: '/(admin)/subjects'  },
-          { label: 'Lectures',  icon: '🎓', path: '/(admin)/lectures'  },
-          { label: 'Reports',   icon: '📊', path: '/(admin)/reports'   },
-          { label: 'Settings',  icon: '⚙️', path: '/(admin)/settings'  },
+          { label: 'Users',          icon: '👥', path: '/(admin)/users'          },
+          { label: 'Subjects',       icon: '📚', path: '/(admin)/subjects'        },
+          { label: 'Lectures',       icon: '🎓', path: '/(admin)/lectures'        },
+          { label: 'Reports',        icon: '📊', path: '/(admin)/reports'         },
+          { label: 'Notifications',  icon: '🔔', path: '/(admin)/notifications'   },
+          { label: 'Settings',       icon: '⚙️', path: '/(admin)/settings'        },
         ].map(item => (
           <TouchableOpacity
             key={item.label}
@@ -106,6 +108,16 @@ export default function AdminDashboard() {
           <Text style={s.configText}>Attendance threshold: <Text style={{ fontWeight: '700' }}>{stats.threshold}%</Text></Text>
         </View>
       )}
+
+      {/* Sign out */}
+      <TouchableOpacity style={s.signOutBtn} onPress={() => {
+        Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign Out', style: 'destructive', onPress: logout },
+        ]);
+      }}>
+        <Text style={s.signOutText}>Sign Out</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -130,4 +142,6 @@ const s = StyleSheet.create({
   actionLabel: { fontSize: 13, fontWeight: '700', color: '#0B0D14' },
   configBanner: { marginHorizontal: 24, backgroundColor: '#EDE9E3', borderRadius: 14, padding: 14 },
   configText: { fontSize: 13, color: '#6B6760' },
+  signOutBtn: { marginHorizontal: 24, marginTop: 8, marginBottom: 16, borderWidth: 1, borderColor: '#E5E1DA', borderRadius: 14, padding: 14, alignItems: 'center' },
+  signOutText: { fontSize: 14, color: '#6B6760', fontWeight: '500' },
 });

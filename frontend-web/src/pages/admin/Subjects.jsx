@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import Modal from '../../components/shared/Modal';
 import FormField, { Input, Select } from '../../components/shared/FormField';
-import { listSubjects, createSubject, generateLectures, enrollStudents } from '../../api/adminApi';
+import { listSubjects, createSubject, enrollStudents, generateLectures } from '../../api/adminApi';
 import { listUsers } from '../../api/adminApi';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -26,7 +26,6 @@ export default function SubjectsPage() {
     const [enrollSearch, setEnrollSearch] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
     const [error, setError] = useState('');
-    const [genStatus, setGenStatus] = useState({});
 
     useEffect(() => {
         loadSubjects();
@@ -53,9 +52,7 @@ export default function SubjectsPage() {
         try {
             const res = await createSubject(form);
             const subjectId = res.data.subjectId;
-            setGenStatus(s => ({ ...s, [subjectId]: 'generating' }));
             await generateLectures(subjectId);
-            setGenStatus(s => ({ ...s, [subjectId]: 'done' }));
             setShowCreate(false);
             setForm(defaultForm());
             loadSubjects();
@@ -190,7 +187,7 @@ export default function SubjectsPage() {
 
                     <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
                         <button type="button" style={ghostBtn} onClick={() => setShowCreate(false)}>Cancel</button>
-                        <button type="submit" style={primaryBtn}>Create & Generate Lectures</button>
+                        <button type="submit" style={primaryBtn}>Create Subject</button>
                     </div>
                 </form>
             </Modal>

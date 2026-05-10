@@ -4,7 +4,7 @@ import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useConfig } from '../../context/ConfigContext';
 import StudentLayout from '../../components/layout/StudentLayout';
-import { listSubjects, getStudentSubjectReport, listLectures } from '../../api/studentApi';
+import { listSubjects, getAllSubjectReports, listLectures } from '../../api/studentApi';
 import { getTodayISO } from '@smart-attendance/shared';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,7 +16,7 @@ export default function StudentDashboard() {
   const [mySubjects, setMySubjects] = useState([]);
   const [subjectStats, setSubjectStats] = useState({});   // subjectId → report
   const [todayLectures, setTodayLectures] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
     if (!userProfile?.uid) return;
@@ -24,36 +24,29 @@ export default function StudentDashboard() {
   }, [userProfile]);
 
   async function loadAll() {
-    setLoading(true);
+    setStatsLoading(true);
     try {
-      // All subjects this student is enrolled in
-      const subRes = await listSubjects();
+      const [subRes, statsRes, lecRes] = await Promise.all([
+        listSubjects(),
+        getAllSubjectReports(userProfile.uid),
+        listLectures({ date: getTodayISO() }),
+      ]);
+
       const enrolled = subRes.data.filter(s =>
         (s.enrolledStudentIds || []).includes(userProfile.uid)
       );
       setMySubjects(enrolled);
 
-      // Per-subject stats
-      const statsMap = {};
-      await Promise.all(
-        enrolled.map(async (s) => {
-          try {
-            const r = await getStudentSubjectReport(userProfile.uid, s.subjectId);
-            statsMap[s.subjectId] = r.data;
-          } catch { /* subject may have no lectures yet */ }
-        })
-      );
+      const statsMap = Object.fromEntries((statsRes.data || []).map(s => [s.subjectId, s]));
       setSubjectStats(statsMap);
 
-      // Today's lectures
-      const lecRes = await listLectures({ date: getTodayISO() });
       const myLectures = lecRes.data.filter(l =>
         enrolled.some(s => s.subjectId === l.subjectId)
       );
       myLectures.sort((a, b) => a.startTime.localeCompare(b.startTime));
       setTodayLectures(myLectures);
     } finally {
-      setLoading(false);
+      setStatsLoading(false);
     }
   }
 
@@ -87,85 +80,65 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* Hero card */}
+      {/* Hero card — renders immediately, values fill in when ready */}
       <div style={heroCard}>
         <p style={heroTitle}>Attendance Overview</p>
         <div style={heroStats}>
           <div style={heroStat}>
             <span style={heroVal}>
-              {overallPct !== null ? `${overallPct}%` : '—'}
+              {statsLoading ? <span style={skeletonVal}>—</span> : (overallPct !== null ? `${overallPct}%` : '—')}
             </span>
             <span style={heroLabel}>Overall Attendance</span>
           </div>
           <div style={heroDivider} />
           <div style={heroStat}>
-            <span style={heroVal}>{mySubjects.length}</span>
+            <span style={heroVal}>
+              {statsLoading ? <span style={skeletonVal}>—</span> : mySubjects.length}
+            </span>
             <span style={heroLabel}>Enrolled Subjects</span>
           </div>
           <div style={heroDivider} />
           <div style={heroStat}>
-            <span style={heroVal}>{shortageSubjects.length}</span>
-            <span style={{ ...heroLabel, color: shortageSubjects.length > 0 ? '#C47018' : '#9B9790' }}>
+            <span style={heroVal}>
+              {statsLoading ? <span style={skeletonVal}>—</span> : shortageSubjects.length}
+            </span>
+            <span style={{ ...heroLabel, color: (!statsLoading && shortageSubjects.length > 0) ? '#C47018' : '#9B9790' }}>
               Shortage Alerts
             </span>
           </div>
         </div>
       </div>
 
-      {/* Today's schedule */}
-      {todayLectures.length > 0 && (
-        <>
-          <span style={sectionLabel}>TODAY'S SCHEDULE</span>
-          <div style={scheduleStrip}>
-            {todayLectures.slice(0, 4).map(lec => {
-              const sub_ = subjectMap[lec.subjectId];
-              return (
-                <div key={lec.lectureId} style={scheduleSlot}>
-                  <p style={slotTime}>{lec.startTime}</p>
-                  <p style={slotName}>{sub_?.courseCode || '—'}</p>
-                  <div style={{
-                    width: 6, height: 6, borderRadius: '50%',
-                    background: lec.attendanceOpen ? '#2A6E35' : '#C4BFB8',
-                    margin: '6px auto 0',
-                  }} />
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
       {/* Module grid */}
       <span style={sectionLabel}>QUICK ACCESS</span>
       <div style={grid}>
-        {/* Iris notice on web */}
-        <div style={moduleCard}>
+        <div style={{ ...moduleCard, cursor: 'default' }}>
           <div style={iconTile}>📷</div>
           <p style={moduleTitle}>Mark Attendance</p>
           <p style={moduleSub}>Use the Android app to scan your iris and mark attendance.</p>
         </div>
 
-        <a href="/student/schedule" style={moduleCard}>
+        <div style={moduleCard} onClick={() => navigate('/student/schedule')}>
           <div style={iconTile}>🗓️</div>
           <p style={moduleTitle}>My Schedule</p>
           <p style={moduleSub}>View weekly schedule and upcoming lectures.</p>
-        </a>
+        </div>
 
-        <a href="/student/history" style={moduleCard}>
+        <div style={moduleCard} onClick={() => navigate('/student/history')}>
           <div style={iconTile}>📋</div>
           <p style={moduleTitle}>Attendance History</p>
           <p style={moduleSub}>View all attendance records with status and confidence.</p>
-        </a>
+        </div>
 
-        <a href="/student/notifications" style={moduleCard}>
+        <div style={moduleCard} onClick={() => navigate('/student/notifications')}>
           <div style={iconTile}>🔔</div>
           <p style={moduleTitle}>Notifications</p>
           <p style={moduleSub}>View announcements and alerts from teachers and admin.</p>
-        </a>
+        </div>
       </div>
 
       {/* Per-subject attendance */}
-      {mySubjects.length > 0 && (
+      {!statsLoading && mySubjects.length > 0 && (
         <>
           <span style={{ ...sectionLabel, marginTop: 28 }}>MY SUBJECTS</span>
           <div style={subjectList}>
@@ -198,7 +171,11 @@ export default function StudentDashboard() {
         </>
       )}
 
-      {loading && <p style={muted}>Loading your data…</p>}
+      {statsLoading && (
+        <div style={subjectSkeletonWrap}>
+          {[1, 2, 3].map(i => <div key={i} style={subjectSkeletonRow} />)}
+        </div>
+      )}
     </StudentLayout>
   );
 }
@@ -217,13 +194,10 @@ const heroStat = { display: 'flex', flexDirection: 'column', flex: 1 };
 const heroVal = { fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 600, fontSize: '28px', color: '#F5F3EF' };
 const heroLabel = { fontSize: '11px', color: '#9B9790', marginTop: '2px' };
 const heroDivider = { width: '1px', height: '40px', background: '#2A2E40', margin: '0 24px' };
+const skeletonVal = { color: '#3A3E50', fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 600, fontSize: '28px' };
 const sectionLabel = { fontSize: '9px', fontWeight: 500, color: '#9B9790', letterSpacing: '0.14em', textTransform: 'uppercase', display: 'block', marginBottom: '14px' };
-const scheduleStrip = { display: 'flex', gap: '12px', marginBottom: '28px', overflowX: 'auto' };
-const scheduleSlot = { background: '#FAF8F4', border: '1px solid #E5E1DA', borderRadius: '14px', padding: '14px 18px', textAlign: 'center', minWidth: '90px' };
-const slotTime = { fontSize: '13px', fontWeight: 600, color: '#0B0D14', margin: 0 };
-const slotName = { fontSize: '11px', color: '#9B9790', margin: '4px 0 0' };
 const grid = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', maxWidth: '680px', marginBottom: '0' };
-const moduleCard = { background: '#FAF8F4', border: '1px solid #E5E1DA', borderRadius: '20px', padding: '22px', textDecoration: 'none', display: 'block', cursor: 'default' };
+const moduleCard = { background: '#FAF8F4', border: '1px solid #E5E1DA', borderRadius: '20px', padding: '22px', textDecoration: 'none', display: 'block', cursor: 'pointer' };
 const iconTile = { width: 38, height: 38, borderRadius: 11, background: '#0B0D14', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', marginBottom: '14px' };
 const moduleTitle = { fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 600, fontSize: '14px', color: '#0B0D14', marginBottom: '4px' };
 const moduleSub = { fontSize: '11px', color: '#9B9790' };
@@ -235,4 +209,6 @@ const subjectMeta = { fontSize: '12px', color: '#9B9790', margin: '2px 0 0' };
 const subjectRight = { display: 'flex', alignItems: 'center', gap: '8px' };
 const pctBadge = { background: '#E5E1DA', color: '#4A4845', borderRadius: '100px', padding: '4px 12px', fontSize: '13px', fontWeight: 600 };
 const shortageTag = { background: '#FAF0DC', color: '#3D2500', borderRadius: '100px', padding: '3px 10px', fontSize: '11px' };
+const subjectSkeletonWrap = { display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '28px' };
+const subjectSkeletonRow = { background: '#EDE9E3', borderRadius: '14px', height: '56px', animation: 'pulse 1.5s ease-in-out infinite' };
 const muted = { color: '#9B9790', fontSize: '13px' };

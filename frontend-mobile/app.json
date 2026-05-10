@@ -7,14 +7,20 @@
     "platforms": [
       "android"
     ],
+    "icon": "./assets/adaptive-icon.png",
     "android": {
+      "package": "com.smartattendance.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F5F3EF"
       },
       "permissions": [
-        "android.permission.CAMERA"
-      ]
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "enableProguardInProductionBuilds": true,
+      "enableShrinkResourcesInProductionBuilds": true
     },
     "plugins": [
       [
@@ -24,6 +30,13 @@
         }
       ],
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "88ba0117-8966-44e6-b6ce-1d8301f1d800"
+      }
+    },
+    "owner": "abdul-moiz"
   }
 }

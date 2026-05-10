@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator, Alert, Modal, Switch
+  ScrollView, ActivityIndicator, Alert, Modal
 } from 'react-native';
 import { router } from 'expo-router';
 import apiClient from '../../api/client';
@@ -101,7 +101,7 @@ export default function UsersScreen() {
       </View>
 
       {/* Filter tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabStrip} contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabStrip} contentContainerStyle={{ paddingHorizontal: 24, gap: 8, alignItems: 'center' }}>
         {FILTERS.map(r => (
           <TouchableOpacity key={r} style={[s.tab, filter === r && s.tabActive]} onPress={() => setFilter(r)}>
             <Text style={[s.tabText, filter === r && s.tabTextActive]}>
@@ -232,14 +232,14 @@ const s = StyleSheet.create({
   headerSection: { paddingHorizontal: 24, paddingBottom: 16 },
   eyebrow: { fontSize: 9, fontWeight: '500', color: '#9B9790', letterSpacing: 2, marginBottom: 4 },
   title: { fontSize: 26, fontWeight: '700', color: '#0B0D14' },
-  tabStrip: { marginBottom: 16 },
+  tabStrip: { marginBottom: 16, flexGrow: 0, flexShrink: 0 },
   tab: { borderWidth: 1, borderColor: '#E5E1DA', borderRadius: 100, paddingHorizontal: 16, paddingVertical: 6 },
   tabActive: { backgroundColor: '#0B0D14', borderColor: '#0B0D14' },
   tabText: { fontSize: 13, color: '#6B6760' },
   tabTextActive: { color: '#F5F3EF' },
   emptyCard: { backgroundColor: '#FAF8F4', borderRadius: 14, borderWidth: 1, borderColor: '#E5E1DA', padding: 24, alignItems: 'center', marginTop: 20 },
   emptyText: { fontSize: 13, color: '#9B9790' },
-  userCard: { backgroundColor: '#FAF8F4', borderRadius: 16, borderWidth: 1, borderColor: '#E5E1DA', padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  userCard: { backgroundColor: '#FAF8F4', borderRadius: 16, borderWidth: 1, borderColor: '#E5E1DA', padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12 },
   userAvatar: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#0B0D14', justifyContent: 'center', alignItems: 'center' },
   userAvatarText: { color: '#F5F3EF', fontWeight: '700', fontSize: 14 },
   userName: { fontSize: 14, fontWeight: '600', color: '#0B0D14' },

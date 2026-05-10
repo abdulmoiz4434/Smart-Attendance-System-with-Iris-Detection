@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import StudentLayout from '../../components/layout/StudentLayout';
 import StatusPill from '../../components/shared/StatusPill';
-import { listSubjects, listMyAttendance, getStudentSubjectReport } from '../../api/studentApi';
-import { listLectures } from '../../api/studentApi';
+import { listSubjects, listMyAttendance, getAllSubjectReports, listLectures } from '../../api/studentApi';
 import { useAuth } from '../../context/AuthContext';
 
 export default function HistoryPage() {
@@ -22,7 +21,8 @@ export default function HistoryPage() {
   }, [userProfile]);
 
   async function loadData() {
-    setLoading(true);
+  setLoading(true);
+  try {
     const subRes = await listSubjects();
     const enrolled = subRes.data.filter(s =>
       (s.enrolledStudentIds || []).includes(userProfile.uid)
@@ -31,32 +31,26 @@ export default function HistoryPage() {
     const sMap = Object.fromEntries(enrolled.map(s => [s.subjectId, s]));
     setSubjectMap(sMap);
 
-    // Load attendance records
-    const attRes = await listMyAttendance({ student_id: userProfile.uid });
+    // 3 parallel calls instead of 1 + N + N
+    const [attRes, statsRes, ...lectureResults] = await Promise.all([
+      listMyAttendance({ student_id: userProfile.uid }),
+      getAllSubjectReports(userProfile.uid),
+      ...enrolled.map(s => listLectures({ subject_id: s.subjectId })),
+    ]);
+
     setRecords(attRes.data.sort((a, b) =>
       (b.markedAt ? new Date(b.markedAt) : 0) - (a.markedAt ? new Date(a.markedAt) : 0)
     ));
 
-    // Load lectures for date lookup
-    const allLectures = [];
-    await Promise.all(enrolled.map(async s => {
-      const r = await listLectures({ subject_id: s.subjectId });
-      allLectures.push(...r.data);
-    }));
-    setLectureMap(Object.fromEntries(allLectures.map(l => [l.lectureId, l])));
-
-    // Per-subject stats
-    const statsMap = {};
-    await Promise.all(enrolled.map(async s => {
-      try {
-        const r = await getStudentSubjectReport(userProfile.uid, s.subjectId);
-        statsMap[s.subjectId] = r.data;
-      } catch {}
-    }));
+    const statsMap = Object.fromEntries(statsRes.data.map(s => [s.subjectId, s]));
     setSubjectStats(statsMap);
 
+    const allLectures = lectureResults.flatMap(r => r.data);
+    setLectureMap(Object.fromEntries(allLectures.map(l => [l.lectureId, l])));
+  } finally {
     setLoading(false);
   }
+}
 
   const filtered = records.filter(r => {
     if (filterSubject !== 'all' && r.subjectId !== filterSubject) return false;

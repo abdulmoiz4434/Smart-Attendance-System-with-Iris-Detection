@@ -13,7 +13,7 @@ import {
     approveRecord, rejectRecord, approveAll,
     manualMark, listSubjects,
 } from '../../api/teacherApi';
-import { listUsers } from '../../api/adminApi';
+import apiClient from '../../api/client';
 
 export default function LectureDetail() {
     const { lectureId } = useParams();
@@ -51,7 +51,7 @@ export default function LectureDetail() {
             const s = r.data.find(s => s.subjectId === lecture.subjectId);
             setSubject(s || null);
             if (s?.enrolledStudentIds?.length) {
-                listUsers('student').then(ur => {
+                apiClient.get('/api/admin/users', { params: { role: 'student' } }).then(ur => {
                     const map = {};
                     ur.data.forEach(u => { map[u.uid] = u; });
                     setStudents(map);

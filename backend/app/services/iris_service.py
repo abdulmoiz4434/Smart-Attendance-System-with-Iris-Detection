@@ -2,8 +2,8 @@ import cv2
 import numpy as np
 from scipy.ndimage import convolve
 from typing import List
-import io
 from PIL import Image
+
 
 
 # ── Gabor filter bank ────────────────────────────────────────────────────────
@@ -62,17 +62,22 @@ def preprocess_iris(image_bytes: bytes) -> np.ndarray | None:
     if img is None:
         return None
 
-    # Detect face first — reject images with no face
+    # Try face detection — use face ROI if found, fall back to full image
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
     gray_full = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray_full, scaleFactor=1.1, minNeighbors=5, minSize=(80, 80))
-    if len(faces) == 0:
-        return None  # No face detected — caller will return "no iris detected" message
 
-    # Crop to face region for better iris detection
-    x, y, w, h = faces[0]
-    face_roi = img[y:y+h, x:x+w]
-    gray = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
+    # Relaxed params: smaller minSize, lower minNeighbors for mobile selfies
+    faces = face_cascade.detectMultiScale(
+        gray_full, scaleFactor=1.1, minNeighbors=3, minSize=(50, 50)
+    )
+
+    if len(faces) > 0:
+        x, y, w, h = faces[0]
+        face_roi = img[y:y+h, x:x+w]
+        gray = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
+    else:
+        # No face detected — use full image (mobile close-up selfies often fail cascade)
+        gray = gray_full
 
     # CLAHE contrast normalisation
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
@@ -121,22 +126,24 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
 
 # ── Public pipeline functions ─────────────────────────────────────────────────
 
-def compute_embedding_from_bytes(image_bytes: bytes) -> np.ndarray | None:
-    """Full pipeline: bytes → ROI → CNN embedding (or Gabor fallback)."""
-    roi = preprocess_iris(image_bytes)
-    if roi is None:
+def compute_embedding_from_bytes(image_bytes: bytes):
+    nparr = np.frombuffer(image_bytes, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if img is None:
         return None
-
-    # Try CNN first
     try:
-        from app.ml.pytorch_model import extract_cnn_embedding
-        cnn_emb = extract_cnn_embedding(roi)
-        if cnn_emb is not None:
-            return cnn_emb
+        from deepface import DeepFace
+        result = DeepFace.represent(
+            img_path=img,
+            model_name="Facenet",
+            enforce_detection=True,
+            detector_backend="opencv"
+        )
+        vec = np.array(result[0]["embedding"], dtype=np.float32)
+        norm = np.linalg.norm(vec)
+        return vec / norm if norm > 0 else vec
     except Exception:
-        pass  # Fall through to Gabor
-
-    return extract_gabor_features(roi)
+        return None
 
 
 def average_embeddings(embeddings: List[np.ndarray]) -> np.ndarray:

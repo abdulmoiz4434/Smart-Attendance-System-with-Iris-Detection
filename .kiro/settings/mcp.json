@@ -1,0 +1,18 @@
+{
+  "mcpServers": {},
+  "powers": {
+    "mcpServers": {
+      "power-firebase-firebase-local": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "firebase-tools@latest",
+          "mcp"
+        ]
+      },
+      "power-context7-context7": {
+        "url": "https://mcp.context7.com/mcp"
+      }
+    }
+  }
+}

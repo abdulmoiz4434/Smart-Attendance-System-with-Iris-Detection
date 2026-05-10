@@ -9,6 +9,9 @@ from app.services.iris_service import (
 )
 from app.services.firebase_service import download_image_bytes, get_student_embedding
 from datetime import datetime, timezone
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -124,6 +127,7 @@ async def verify_iris(
 
     fresh_embedding = compute_embedding_from_bytes(image_bytes)
     if fresh_embedding is None:
+        logger.warning(f"[iris/verify] No iris ROI extracted for student={payload.studentId}")
         return {
             "matched": False,
             "score": 0,
@@ -135,6 +139,7 @@ async def verify_iris(
     # Compute similarity
     score = cosine_similarity(fresh_embedding.tolist(), stored_embedding)
     matched = score >= threshold
+    logger.info(f"[iris/verify] student={payload.studentId} score={score:.4f} threshold={threshold} matched={matched}")
 
     now = datetime.now(timezone.utc)
     if not matched:
